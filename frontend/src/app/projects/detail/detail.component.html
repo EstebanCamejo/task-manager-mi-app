@@ -1,1 +1,52 @@
-<p>detail works!</p>
+<div class="project-detail">
+  <header>
+    <div class="user-block">
+      <span class="user-name">{{ userName }}</span>
+      <a routerLink="/dashboard">← Volver a proyectos</a>
+    </div>
+    <button type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  @if (loading) {
+    <p>Cargando...</p>
+  } @else if (error && !project) {
+    <p class="error">{{ error }}</p>
+  } @else if (project) {
+    <section class="project-header">
+      @if (!editingProject) {
+        <h1>{{ project.name }}</h1>
+        <p class="description">{{ project.description || 'Sin descripción' }}</p>
+        <div class="project-status-block">
+          <label for="project-status">Estado del proyecto</label>
+          <select
+            id="project-status"
+            [ngModel]="selectedProjectStatus"
+            (ngModelChange)="selectedProjectStatus = $event"
+          >
+            @for (opt of projectStatusOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+          <button type="button" (click)="onSaveProjectStatus()">Guardar</button>
+        </div>
+        <div class="project-actions">
+          <button type="button" (click)="startEditProject()">Editar proyecto</button>
+          <button type="button" class="btn-delete" (click)="onDeleteProject()">Eliminar proyecto</button>
+        </div>
+      } @else {
+        <form [formGroup]="editProjectForm" (ngSubmit)="onSaveProject()">
+          <div>
+            <label for="edit-name">Nombre</label>
+            <input id="edit-name" type="text" formControlName="name" />
+          </div>
+          <div>
+            <label for="edit-desc">Descripción</label>
+            <input id="edit-desc" type="text" formControlName="description" />
+          </div>
+          <button type="submit" [disabled]="editProjectForm.invalid">Guardar</button>
+          <button type="button" (click)="cancelEditProject()">Cancelar</button>
+        </form>
+      }
+    </section>
+  }
+</div>

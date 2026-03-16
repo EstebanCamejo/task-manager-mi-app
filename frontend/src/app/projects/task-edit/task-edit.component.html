@@ -1,0 +1,44 @@
+<div class="task-edit">
+  <header>
+    <div class="user-block">
+      <span class="user-name">{{ userName }}</span>
+      <a [routerLink]="['/dashboard']">← Volver al inicio</a>
+    </div>
+    <button type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  @if (loading) {
+    <p>Cargando...</p>
+  } @else if (error && !task) {
+    <p class="error">{{ error }}</p>
+  } @else if (task) {
+    <h1>Editar tarea</h1>
+    <p class="meta">Creada por {{ task.creatorName }}</p>
+
+    <form [formGroup]="form" (ngSubmit)="onSave()">
+      <div>
+        <label for="title">Título</label>
+        <input id="title" type="text" formControlName="title" />
+      </div>
+      <div>
+        <label for="desc">Descripción</label>
+        <textarea id="desc" formControlName="description" rows="4"></textarea>
+      </div>
+      <div>
+        <label for="status">Estado</label>
+        <select id="status" formControlName="status">
+          @for (opt of statusOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+      @if (error) {
+        <p class="error">{{ error }}</p>
+      }
+      <div class="actions">
+        <button type="button" (click)="onSave()" [disabled]="form.invalid">Guardar</button>
+        <a [routerLink]="['/dashboard']" class="btn-cancel">Cancelar</a>
+      </div>
+    </form>
+  }
+</div>

@@ -1,1 +1,38 @@
-<p>register works!</p>
+<div class="auth-box">
+  <h1>Registrarse</h1>
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    @if (error) {
+      <p class="error">{{ error }}</p>
+    }
+    <div>
+      <label for="name">Nombre</label>
+      <input id="name" type="text" formControlName="name" />
+      @if (form.get('name')?.invalid && form.get('name')?.touched) {
+        <span class="field-error">Nombre requerido</span>
+      }
+    </div>
+    <div>
+      <label for="email">Email</label>
+      <input id="email" type="email" formControlName="email" />
+      @if (form.get('email')?.invalid && form.get('email')?.touched) {
+        <span class="field-error">Email requerido y válido</span>
+      }
+    </div>
+    <div>
+      <label for="password">Contraseña</label>
+      <input id="password" type="password" formControlName="password" />
+      @if (form.get('password')?.invalid && form.get('password')?.touched) {
+        <span class="field-error">Mínimo 6 caracteres</span>
+      }
+    </div>
+    <div>
+      <label for="role">Rol</label>
+      <select id="role" formControlName="role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <button type="submit" [disabled]="form.invalid">Crear cuenta</button>
+  </form>
+  <p><a routerLink="/auth/login">Ya tengo cuenta</a></p>
+</div>

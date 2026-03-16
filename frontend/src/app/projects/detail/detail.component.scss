@@ -1,0 +1,96 @@
+.project-detail {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .user-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .user-block .user-name {
+    font-weight: 600;
+    font-size: 1.125rem;
+  }
+  .user-block a {
+    font-size: 0.875rem;
+  }
+  a {
+    color: #0066cc;
+    text-decoration: none;
+  }
+  button {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+  }
+  .description {
+    color: #555;
+  }
+  .project-header {
+    margin-bottom: 1rem;
+  }
+  .project-status-block {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+  .project-status-block label {
+    font-weight: 500;
+  }
+  .project-status-block select {
+    padding: 0.35rem 0.5rem;
+  }
+  .project-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    align-items: center;
+  }
+  .btn-ver-tareas {
+    padding: 0.5rem 1rem;
+    background: #0066cc;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-ver-tareas:hover {
+    background: #0052a3;
+  }
+  .project-header form > div {
+    margin-bottom: 0.75rem;
+  }
+  .project-header label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+  }
+  .project-header input {
+    width: 100%;
+    padding: 0.5rem;
+    box-sizing: border-box;
+  }
+  .project-header form button {
+    margin-right: 0.5rem;
+  }
+  .error {
+    color: #c00;
+    font-size: 0.875rem;
+  }
+  section {
+    margin-top: 1.5rem;
+  }
+  .btn-delete {
+    color: #c00;
+    background: transparent;
+    border: 1px solid #c00;
+  }
+}

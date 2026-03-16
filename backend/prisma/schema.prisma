@@ -1,0 +1,61 @@
+// https://pris.ly/d/prisma-schema-data-sources
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  user
+}
+
+enum ProjectStatus {
+  pendiente
+  en_proceso
+  finalizado
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  password     String
+  name         String
+  role         Role      @default(user)
+  createdAt    DateTime  @default(now())
+  projects     Project[] @relation("ProjectOwner")
+  tasksCreated Task[]    @relation("TaskCreator")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String        @default("")
+  status      ProjectStatus @default(pendiente)
+  ownerId     String
+  owner       User          @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  tasks       Task[]
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  title        String
+  description  String     @default("")
+  status       TaskStatus @default(todo)
+  projectId    String
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creatorId    String
+  creator      User       @relation("TaskCreator", fields: [creatorId], references: [id])
+  assigneeName String?
+  createdAt    DateTime   @default(now())
+}

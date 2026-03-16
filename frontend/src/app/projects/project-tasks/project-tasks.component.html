@@ -1,0 +1,76 @@
+<div class="project-tasks">
+  <header>
+    <div class="user-block">
+      <span class="user-name">{{ userName }}</span>
+      <a [routerLink]="['/dashboard/projects', projectId]">← Volver al proyecto</a>
+    </div>
+    <button type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  @if (loading) {
+    <p>Cargando...</p>
+  } @else if (error && !project) {
+    <p class="error">{{ error }}</p>
+  } @else if (project) {
+    <h1>{{ project.name }}</h1>
+
+    <section class="task-list">
+      <div class="task-list-header">
+        <h2>Tareas</h2>
+        <button type="button" (click)="showCreateTaskForm = !showCreateTaskForm">
+          {{ showCreateTaskForm ? 'Cancelar' : 'Crear tarea' }}
+        </button>
+      </div>
+
+      @if (showCreateTaskForm) {
+        <form [formGroup]="createForm" (ngSubmit)="onCreateTask()" class="create-task-form">
+          <div>
+            <label for="title">Título</label>
+            <input id="title" type="text" formControlName="title" />
+          </div>
+          <div>
+            <label for="desc">Descripción</label>
+            <input id="desc" type="text" formControlName="description" />
+          </div>
+          <button type="submit" [disabled]="createForm.invalid">
+            Crear tarea
+          </button>
+        </form>
+        @if (error) {
+          <p class="error">{{ error }}</p>
+        }
+      }
+
+      @if (tasksLoading) {
+        <p>Cargando tareas...</p>
+      } @else if (tasks.length === 0) {
+        <p>Aún no hay tareas.</p>
+      } @else {
+        <ul class="task-list-items">
+          @for (task of tasks; track task.id) {
+            <li class="task-item" [class]="'task-by-creator-' + creatorColorIndex(task.creatorName)">
+              <div class="task-row">
+                <a [routerLink]="['/dashboard/projects', projectId, 'tasks', task.id]" class="task-title">
+                  {{ task.title }}
+                </a>
+                <span class="task-creator-badge" [class]="'creator-color-' + creatorColorIndex(task.creatorName)">
+                  Creada por {{ task.creatorName || 'Desconocido' }}
+                </span>
+                <span class="task-status">{{ statusLabel(task.status) }}</span>
+                @if (canDeleteTask(task)) {
+                  <button
+                    type="button"
+                    class="btn-delete"
+                    (click)="onDelete(task)"
+                  >
+                    Eliminar
+                  </button>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</div>

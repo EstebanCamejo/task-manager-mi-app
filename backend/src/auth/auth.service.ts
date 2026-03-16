@@ -22,7 +22,7 @@ export class AuthService {
       role: dto.role ?? Role.User,
     });
 
-    const token = await this.signToken(user.id, user.email, user.role);
+    const token = await this.signToken(user.id, user.email, user.role, user.name);
     return { access_token: token };
   }
 
@@ -40,7 +40,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const token = await this.signToken(user.id, user.email, user.role);
+    const token = await this.signToken(user.id, user.email, user.role, user.name);
     return { access_token: token };
   }
 
@@ -48,8 +48,9 @@ export class AuthService {
     userId: string,
     email: string,
     role: Role,
+    name: string,
   ): Promise<string> {
-    const payload = { sub: userId, email, role };
+    const payload = { sub: userId, email, role, name };
     return this.jwtService.signAsync(payload);
   }
 }
