@@ -42,18 +42,18 @@ export class ProjectsController {
   }
 
   @Get(':projectId/tasks')
-  getTasks(@Param('projectId') projectId: string) {
-    this.projectsService.findOne(projectId);
+  async getTasks(@Param('projectId') projectId: string) {
+    await this.projectsService.findOne(projectId);
     return this.tasksService.findAllByProject(projectId);
   }
 
   @Post(':projectId/tasks')
-  createTask(
+  async createTask(
     @Param('projectId') projectId: string,
     @CurrentUser('userId') userId: string,
     @Body() dto: CreateTaskDto,
   ) {
-    this.projectsService.findOne(projectId);
+    await this.projectsService.findOne(projectId);
     return this.tasksService.create(projectId, userId, {
       title: dto.title,
       description: dto.description,
@@ -80,12 +80,12 @@ export class ProjectsController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @Param('id') id: string,
     @CurrentUser('userId') userId: string,
     @CurrentUser('role') role: string,
   ) {
-    this.tasksService.removeByProjectId(id);
-    this.projectsService.remove(id, userId, role);
+    await this.tasksService.removeByProjectId(id);
+    await this.projectsService.remove(id, userId, role);
   }
 }

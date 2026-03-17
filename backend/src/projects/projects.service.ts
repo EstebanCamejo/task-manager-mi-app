@@ -3,6 +3,8 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { ProjectStatus as PrismaProjectStatus } from '@prisma/client';
 
 export type ProjectStatus = 'pendiente' | 'en_proceso' | 'finalizado';
 
@@ -16,63 +18,81 @@ export interface Project {
 
 @Injectable()
 export class ProjectsService {
-  private projects: Project[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  create(
+  async create(
     ownerId: string,
     role: string,
     data: { name: string; description?: string },
-  ): Project {
+  ): Promise<Project> {
     if (role !== 'admin') {
       throw new ForbiddenException(
         'Solo los administradores pueden crear proyectos.',
       );
     }
-    const project: Project = {
-      id: crypto.randomUUID(),
-      name: data.name,
-      description: data.description ?? '',
-      ownerId,
-      status: 'pendiente',
-    };
-    this.projects.push(project);
-    return project;
-  }
-
-  findAll(): Project[] {
-    this.projects.forEach((p) => {
-      if (!p.status) p.status = 'pendiente';
+    const project = await this.prisma.project.create({
+      data: {
+        name: data.name,
+        description: data.description ?? '',
+        ownerId,
+        status: PrismaProjectStatus.pendiente,
+      },
     });
-    return this.projects;
+    return this.toProject(project);
   }
 
-  findOne(id: string): Project {
-    const project = this.projects.find((p) => p.id === id);
+  async findAll(): Promise<Project[]> {
+    const list = await this.prisma.project.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return list.map((p) => this.toProject(p));
+  }
+
+  async findOne(id: string): Promise<Project> {
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+    });
     if (!project) {
       throw new NotFoundException('Project not found');
     }
-    if (!project.status) project.status = 'pendiente';
-    return project;
+    return this.toProject(project);
   }
 
-  update(
+  async update(
     id: string,
     userId: string,
     role: string,
     data: { name?: string; description?: string; status?: ProjectStatus },
-  ): Project {
-    const project = this.findOne(id);
+  ): Promise<Project> {
+    const project = await this.findOne(id);
     this.assertCanModify(project, userId, role);
-    if (data.name !== undefined) project.name = data.name;
-    if (data.description !== undefined) project.description = data.description;
-    if (data.status !== undefined) project.status = data.status;
-    return project;
+    const updated = await this.prisma.project.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.status !== undefined && { status: data.status as PrismaProjectStatus }),
+      },
+    });
+    return this.toProject(updated);
   }
 
-  remove(id: string, userId: string, role: string): void {
-    const project = this.findOne(id);
+  async remove(id: string, userId: string, role: string): Promise<void> {
+    const project = await this.findOne(id);
     this.assertCanModify(project, userId, role);
-    this.projects = this.projects.filter((p) => p.id !== id);
+    await this.prisma.project.delete({
+      where: { id },
+    });
+  }
+
+  private toProject(row: { id: string; name: string; description: string; ownerId: string; status: string }): Project {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      ownerId: row.ownerId,
+      status: row.status as ProjectStatus,
+    };
   }
 
   private assertCanModify(project: Project, userId: string, role: string): void {
