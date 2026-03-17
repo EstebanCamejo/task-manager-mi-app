@@ -4,4 +4,6 @@ export class UpdateTaskDto {
   title?: string;
   description?: string;
   status?: TaskStatus;
+  /** 'urgente' | 'prioritario' | 'normal' */
+  priority?: 'urgente' | 'prioritario' | 'normal';
 }

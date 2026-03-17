@@ -1,9 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ProjectsService, Project } from '../../services/projects.service';
 import { TasksService, TaskWithCreator, TaskStatus } from '../../services/tasks.service';
 import { AuthService } from '../../services/auth.service';
+import { ModalService } from '../../modal/modal.service';
+import { ConfirmModalComponent } from '../../modal/confirm-modal/confirm-modal.component';
 
 @Component({
   selector: 'app-project-tasks',
@@ -24,6 +26,8 @@ export class ProjectTasksComponent implements OnInit {
     { value: 'in_progress', label: 'En progreso' },
     { value: 'done', label: 'Hecho' },
   ];
+
+  private modal = inject(ModalService);
 
   constructor(
     private route: ActivatedRoute,
@@ -129,17 +133,29 @@ export class ProjectTasksComponent implements OnInit {
   }
 
   onDelete(task: TaskWithCreator): void {
-    if (!confirm('¿Eliminar esta tarea?')) return;
-    this.error = '';
-    this.tasksService.deleteTask(task.id).subscribe({
-      next: () => {
-        this.tasks = this.tasks.filter((t) => t.id !== task.id);
-      },
-      error: (err) => {
-        this.error =
-          err?.error?.message ?? 'No tenés permiso para eliminar esta tarea';
-      },
-    });
+    this.modal
+      .open(ConfirmModalComponent, {
+        data: {
+          title: 'Eliminar tarea',
+          message: '¿Eliminar esta tarea?',
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          danger: true,
+        },
+      })
+      .afterClosed.subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.error = '';
+        this.tasksService.deleteTask(task.id).subscribe({
+          next: () => {
+            this.tasks = this.tasks.filter((t) => t.id !== task.id);
+          },
+          error: (err) => {
+            this.error =
+              err?.error?.message ?? 'No tenés permiso para eliminar esta tarea';
+          },
+        });
+      });
   }
 
   statusLabel(status: TaskStatus): string {

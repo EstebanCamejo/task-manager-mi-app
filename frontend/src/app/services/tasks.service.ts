@@ -6,12 +6,14 @@ import { AuthService } from './auth.service';
 const API = 'http://localhost:3000';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'done';
+export type TaskPriority = 'urgente' | 'prioritario' | 'normal';
 
 export interface Task {
   id: string;
   title: string;
   description: string;
   status: TaskStatus;
+  priority: TaskPriority;
   projectId: string;
   creatorId: string;
   assigneeName: string;
@@ -61,21 +63,36 @@ export class TasksService {
     projectId: string,
     title: string,
     description: string,
+    status: TaskStatus = 'todo',
+    priority: TaskPriority = 'normal',
   ): Observable<Task> {
     return this.http.post<Task>(
       `${API}/projects/${projectId}/tasks`,
-      { title, description },
+      { title, description, status, priority },
       { headers: this.headers() },
     );
   }
 
   updateTask(
     taskId: string,
-    data: { title: string; description: string; status?: TaskStatus },
+    data: {
+      title: string;
+      description: string;
+      status?: TaskStatus;
+      priority?: TaskPriority;
+    },
   ): Observable<Task> {
     return this.http.patch<Task>(`${API}/tasks/${taskId}`, data, {
       headers: this.headers(),
     });
+  }
+
+  updateTaskStatus(taskId: string, status: TaskStatus): Observable<Task> {
+    return this.http.patch<Task>(
+      `${API}/tasks/${taskId}/status`,
+      { status },
+      { headers: this.headers() },
+    );
   }
 
   deleteTask(taskId: string): Observable<void> {

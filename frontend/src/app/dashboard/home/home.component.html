@@ -7,44 +7,27 @@
       <span class="user-name">{{ userName }}</span>
       <span class="section-label">Proyectos</span>
     </div>
-    <button type="button" (click)="logout()">Cerrar sesión</button>
+    <div class="header-actions">
+      @if (isAdmin) {
+        <button type="button" (click)="openCreateProject()">Nuevo proyecto</button>
+      }
+      <button type="button" (click)="logout()">Cerrar sesión</button>
+    </div>
   </header>
 
   <section class="project-list">
-    @if (isAdmin) {
-      <div class="list-header">
-        <button type="button" (click)="showCreateForm = !showCreateForm">
-          {{ showCreateForm ? 'Cancelar' : 'Nuevo proyecto' }}
-        </button>
-      </div>
-
-      @if (showCreateForm) {
-        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="create-project-form">
-          @if (error) {
-            <p class="error">{{ error }}</p>
-          }
-          <div>
-            <label for="name">Nombre</label>
-            <input id="name" type="text" formControlName="name" />
-          </div>
-          <div>
-            <label for="description">Descripción</label>
-            <input id="description" type="text" formControlName="description" />
-          </div>
-          <button type="submit" [disabled]="form.invalid">Crear proyecto</button>
-        </form>
-      }
-    }
-
     @if (loading) {
       <p>Cargando...</p>
     } @else if (projects.length === 0) {
-      <p>No hay proyectos.@if (isAdmin) { Creá uno con el botón "Nuevo proyecto".}</p>
+      <p>
+        No hay proyectos.
+        @if (isAdmin) { Creá uno con el botón "Nuevo proyecto".}
+      </p>
     } @else {
       <ul>
         @for (p of projects; track p.id) {
           <li>
-            <a [routerLink]="['/dashboard/projects', p.id]">{{ p.name }}</a>
+            <button type="button" class="btn-link" (click)="filterByProject = p.id">{{ p.name }}</button>
             <span class="description">{{ p.description }}</span>
             <span class="status" [class]="'status-' + (p.status ?? 'pendiente')">{{ projectStatusLabel(p.status) }}</span>
             <button
@@ -64,36 +47,8 @@
   <section class="task-list">
     <h2>Tareas</h2>
     <div class="task-actions-row">
-      <button type="button" (click)="toggleCreateTaskForm()">
-        {{ showCreateTaskForm ? 'Cancelar' : 'Crear tarea' }}
-      </button>
+      <span class="hint">Arrastrá tareas entre columnas para cambiar su estado (próximo paso).</span>
     </div>
-
-    @if (showCreateTaskForm) {
-      @if (projects.length === 0) {
-        <p class="task-empty">No hay proyectos para asignar. Un administrador debe crear uno.</p>
-      } @else {
-        <form [formGroup]="createTaskForm" (ngSubmit)="onCreateTask()" class="create-task-form-inline">
-          <div>
-            <label for="task-project">Proyecto</label>
-            <select id="task-project" formControlName="projectId">
-              @for (p of projects; track p.id) {
-                <option [value]="p.id">{{ p.name }}</option>
-              }
-            </select>
-          </div>
-          <div>
-            <label for="task-title">Título</label>
-            <input id="task-title" type="text" formControlName="title" />
-          </div>
-          <div>
-            <label for="task-desc">Descripción</label>
-            <input id="task-desc" type="text" formControlName="description" />
-          </div>
-          <button type="submit" [disabled]="createTaskForm.invalid">Crear tarea</button>
-        </form>
-      }
-    }
 
     <div class="task-filters">
       <label for="filter-project">Proyecto</label>
@@ -125,56 +80,106 @@
     } @else if (filteredTasks.length === 0) {
       <p class="task-empty">No hay tareas que coincidan con el filtro.</p>
     } @else {
-      <ul class="task-list-items">
-        @for (task of filteredTasks; track task.id) {
-          <li class="task-item" [class]="'task-by-creator-' + creatorColorIndex(task.creatorName)">
-            @if (editingTaskId === task.id) {
-              <form [formGroup]="editTaskForm" (ngSubmit)="onSaveEditTask()" class="edit-task-form-inline">
-                <div>
-                  <label>Título</label>
-                  <input type="text" formControlName="title" />
+      <div class="board">
+        <div class="column" data-status="todo" appTaskColumnDnd [status]="'todo'">
+          <div class="column-header">
+            <h3>Por hacer</h3>
+            <span class="count">{{ tasksByStatus('todo').length }}</span>
+          </div>
+          <div class="column-body">
+            @for (task of tasksByStatus('todo'); track task.id) {
+              <div class="card" appTaskCardDnd [taskId]="task.id" [fromStatus]="task.status" [class]="'priority-' + task.priority">
+                <div class="card-top">
+                  <span class="card-title">{{ task.title }}</span>
+                  <span class="badge" [class]="'badge-' + task.priority">
+                    {{ taskPriorityLabel(task.priority) }}
+                  </span>
                 </div>
-                <div>
-                  <label>Descripción</label>
-                  <textarea formControlName="description" rows="2"></textarea>
+                <div class="card-meta">
+                  <button type="button" class="task-project-link btn-link" (click)="filterByProject = task.projectId">
+                    {{ getProjectName(task.projectId) }}
+                  </button>
+                  <span class="creator">{{ task.creatorName || 'Desconocido' }}</span>
+                  <span class="role">{{ task.creatorRole === 'admin' ? 'Admin' : 'User' }}</span>
                 </div>
-                <div>
-                  <label>Estado</label>
-                  <select formControlName="status">
-                    <option value="todo">Por hacer</option>
-                    <option value="in_progress">En progreso</option>
-                    <option value="done">Hecho</option>
-                  </select>
-                </div>
-                <div class="edit-actions">
-                  <button type="submit" [disabled]="editTaskForm.invalid">Guardar</button>
-                  <button type="button" (click)="cancelEditTask()">Cancelar</button>
-                </div>
-              </form>
-            } @else {
-              <div class="task-row">
-                <span class="task-title" (click)="startEditTask(task)">{{ task.title }}</span>
-                <a [routerLink]="['/dashboard/projects', task.projectId]" class="task-project-link" (click)="$event.stopPropagation()">
-                  {{ getProjectName(task.projectId) }}
-                </a>
-                <span class="task-creator-badge" [class]="'creator-color-' + creatorColorIndex(task.creatorName)">
-                  Creada por {{ task.creatorName || 'Desconocido' }}
-                </span>
-                <span class="task-role">{{ task.creatorRole === 'admin' ? 'Admin' : 'User' }}</span>
-                <span class="task-status">{{ taskStatusLabel(task.status) }}</span>
-                <div class="task-row-actions">
-                  @if (canModifyTask(task)) {
-                    <button type="button" (click)="startEditTask(task)">Editar</button>
-                  }
+                <div class="card-actions">
+                  <button type="button" (click)="startEditTask(task)">Editar</button>
                   @if (canDeleteTask(task)) {
                     <button type="button" class="btn-delete" (click)="onDeleteTask(task)">Eliminar</button>
                   }
                 </div>
               </div>
             }
-          </li>
-        }
-      </ul>
+            <button type="button" class="btn-add" (click)="openCreateTaskInStatus('todo')">+</button>
+          </div>
+        </div>
+
+        <div class="column" data-status="in_progress" appTaskColumnDnd [status]="'in_progress'">
+          <div class="column-header">
+            <h3>En progreso</h3>
+            <span class="count">{{ tasksByStatus('in_progress').length }}</span>
+          </div>
+          <div class="column-body">
+            @for (task of tasksByStatus('in_progress'); track task.id) {
+              <div class="card" appTaskCardDnd [taskId]="task.id" [fromStatus]="task.status" [class]="'priority-' + task.priority">
+                <div class="card-top">
+                  <span class="card-title">{{ task.title }}</span>
+                  <span class="badge" [class]="'badge-' + task.priority">
+                    {{ taskPriorityLabel(task.priority) }}
+                  </span>
+                </div>
+                <div class="card-meta">
+                  <button type="button" class="task-project-link btn-link" (click)="filterByProject = task.projectId">
+                    {{ getProjectName(task.projectId) }}
+                  </button>
+                  <span class="creator">{{ task.creatorName || 'Desconocido' }}</span>
+                  <span class="role">{{ task.creatorRole === 'admin' ? 'Admin' : 'User' }}</span>
+                </div>
+                <div class="card-actions">
+                  <button type="button" (click)="startEditTask(task)">Editar</button>
+                  @if (canDeleteTask(task)) {
+                    <button type="button" class="btn-delete" (click)="onDeleteTask(task)">Eliminar</button>
+                  }
+                </div>
+              </div>
+            }
+            <button type="button" class="btn-add" (click)="openCreateTaskInStatus('in_progress')">+</button>
+          </div>
+        </div>
+
+        <div class="column" data-status="done" appTaskColumnDnd [status]="'done'">
+          <div class="column-header">
+            <h3>Hecho</h3>
+            <span class="count">{{ tasksByStatus('done').length }}</span>
+          </div>
+          <div class="column-body">
+            @for (task of tasksByStatus('done'); track task.id) {
+              <div class="card" appTaskCardDnd [taskId]="task.id" [fromStatus]="task.status" [class]="'priority-' + task.priority">
+                <div class="card-top">
+                  <span class="card-title">{{ task.title }}</span>
+                  <span class="badge" [class]="'badge-' + task.priority">
+                    {{ taskPriorityLabel(task.priority) }}
+                  </span>
+                </div>
+                <div class="card-meta">
+                  <button type="button" class="task-project-link btn-link" (click)="filterByProject = task.projectId">
+                    {{ getProjectName(task.projectId) }}
+                  </button>
+                  <span class="creator">{{ task.creatorName || 'Desconocido' }}</span>
+                  <span class="role">{{ task.creatorRole === 'admin' ? 'Admin' : 'User' }}</span>
+                </div>
+                <div class="card-actions">
+                  <button type="button" (click)="startEditTask(task)">Editar</button>
+                  @if (canDeleteTask(task)) {
+                    <button type="button" class="btn-delete" (click)="onDeleteTask(task)">Eliminar</button>
+                  }
+                </div>
+              </div>
+            }
+            <button type="button" class="btn-add" (click)="openCreateTaskInStatus('done')">+</button>
+          </div>
+        </div>
+      </div>
     }
   </section>
 </div>

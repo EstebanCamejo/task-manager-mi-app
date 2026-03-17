@@ -13,13 +13,17 @@ export interface Task {
   title: string;
   description: string;
   status: TaskStatus;
+  priority: 'urgente' | 'prioritario' | 'normal';
   projectId: string;
   creatorId: string;
   assigneeName: string;
 }
 
 export type TaskWithCreator = Task & { creatorName: string };
-export type TaskWithCreatorAndRole = Task & { creatorName: string; creatorRole: string };
+export type TaskWithCreatorAndRole = Task & {
+  creatorName: string;
+  creatorRole: string;
+};
 
 const statusToPrisma: Record<TaskStatus, PrismaTaskStatus> = {
   [TaskStatus.Todo]: PrismaTaskStatus.todo,
@@ -28,6 +32,13 @@ const statusToPrisma: Record<TaskStatus, PrismaTaskStatus> = {
 };
 
 const statusFromPrisma = (s: string): TaskStatus => s as TaskStatus;
+
+const priorityFromPrisma = (
+  p: unknown,
+): 'urgente' | 'prioritario' | 'normal' => {
+  if (p === 'urgente' || p === 'prioritario' || p === 'normal') return p;
+  return 'normal';
+};
 
 @Injectable()
 export class TasksService {
@@ -39,18 +50,26 @@ export class TasksService {
   async create(
     projectId: string,
     creatorId: string,
-    data: { title: string; description?: string },
+    data: {
+      title: string;
+      description?: string;
+      status?: TaskStatus;
+      priority?: 'urgente' | 'prioritario' | 'normal';
+    },
   ): Promise<Task> {
     const assigneeName = await this.externalService.getRandomAssigneeName();
     const task = await this.prisma.task.create({
+      // Prisma Client types pueden quedar desincronizados en el editor;
+      // la columna existe en BD y Prisma schema.
       data: {
         title: data.title,
         description: data.description ?? '',
         projectId,
         creatorId,
         assigneeName: assigneeName || null,
-        status: PrismaTaskStatus.todo,
-      },
+        status: statusToPrisma[data.status ?? TaskStatus.Todo],
+        priority: data.priority ?? 'normal',
+      } as any,
     });
     return this.toTask(task);
   }
@@ -112,7 +131,12 @@ export class TasksService {
     id: string,
     _userId: string,
     _role: string,
-    data: { title?: string; description?: string; status?: TaskStatus },
+    data: {
+      title?: string;
+      description?: string;
+      status?: TaskStatus;
+      priority?: 'urgente' | 'prioritario' | 'normal';
+    },
   ): Promise<Task> {
     await this.findOne(id);
     const updated = await this.prisma.task.update({
@@ -121,7 +145,8 @@ export class TasksService {
         ...(data.title !== undefined && { title: data.title }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.status !== undefined && { status: statusToPrisma[data.status] }),
-      },
+        ...(data.priority !== undefined && { priority: data.priority }),
+      } as any,
     });
     return this.toTask(updated);
   }
@@ -159,6 +184,7 @@ export class TasksService {
     title: string;
     description: string;
     status: string;
+    priority?: unknown;
     projectId: string;
     creatorId: string;
     assigneeName: string | null;
@@ -168,6 +194,7 @@ export class TasksService {
       title: row.title,
       description: row.description,
       status: statusFromPrisma(row.status),
+      priority: priorityFromPrisma(row.priority),
       projectId: row.projectId,
       creatorId: row.creatorId,
       assigneeName: row.assigneeName ?? '',

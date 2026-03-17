@@ -25,6 +25,12 @@ enum TaskStatus {
   done
 }
 
+enum TaskPriority {
+  urgente
+  prioritario
+  normal
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -48,14 +54,15 @@ model Project {
 }
 
 model Task {
-  id           String     @id @default(cuid())
+  id           String       @id @default(cuid())
   title        String
-  description  String     @default("")
-  status       TaskStatus @default(todo)
+  description  String       @default("")
+  status       TaskStatus   @default(todo)
+  priority     TaskPriority @default(normal)
   projectId    String
-  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   creatorId    String
-  creator      User       @relation("TaskCreator", fields: [creatorId], references: [id])
+  creator      User         @relation("TaskCreator", fields: [creatorId], references: [id])
   assigneeName String?
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime     @default(now())
 }

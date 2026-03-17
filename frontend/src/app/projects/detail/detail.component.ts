@@ -1,8 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ProjectsService, Project, ProjectStatus } from '../../services/projects.service';
 import { AuthService } from '../../services/auth.service';
+import { ModalService } from '../../modal/modal.service';
+import { ConfirmModalComponent } from '../../modal/confirm-modal/confirm-modal.component';
 
 @Component({
   selector: 'app-detail',
@@ -21,6 +23,8 @@ export class DetailComponent implements OnInit {
     { value: 'en_proceso', label: 'En proceso' },
     { value: 'finalizado', label: 'Finalizado' },
   ];
+
+  private modal = inject(ModalService);
 
   constructor(
     private route: ActivatedRoute,
@@ -127,15 +131,28 @@ export class DetailComponent implements OnInit {
   }
 
   onDeleteProject(): void {
-    if (!this.project || !confirm('¿Eliminar el proyecto "' + this.project.name + '" y todas sus tareas?')) return;
-    this.error = '';
-    this.projectsService.deleteProject(this.project.id).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
-      error: (err) => {
-        this.error =
-          err?.error?.message ??
-          'No tenés permiso para eliminar este proyecto';
-      },
-    });
+    if (!this.project) return;
+    this.modal
+      .open(ConfirmModalComponent, {
+        data: {
+          title: 'Eliminar proyecto',
+          message: `¿Eliminar el proyecto "${this.project.name}" y todas sus tareas?`,
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          danger: true,
+        },
+      })
+      .afterClosed.subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.error = '';
+        this.projectsService.deleteProject(this.project!.id).subscribe({
+          next: () => this.router.navigate(['/dashboard']),
+          error: (err) => {
+            this.error =
+              err?.error?.message ??
+              'No tenés permiso para eliminar este proyecto';
+          },
+        });
+      });
   }
 }

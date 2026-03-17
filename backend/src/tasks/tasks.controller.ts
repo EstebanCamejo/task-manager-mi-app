@@ -42,6 +42,7 @@ export class TasksController {
       title: dto.title,
       description: dto.description,
       status: dto.status,
+      priority: dto.priority,
     });
   }
 

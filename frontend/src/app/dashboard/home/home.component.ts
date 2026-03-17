@@ -1,52 +1,43 @@
-import { Component, OnInit } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ProjectsService, Project, ProjectStatus } from '../../services/projects.service';
-import { TasksService, TaskWithCreatorAndRole, TaskStatus } from '../../services/tasks.service';
+import { TasksService, TaskWithCreatorAndRole, TaskPriority, TaskStatus } from '../../services/tasks.service';
 import { AuthService } from '../../services/auth.service';
+import { ModalService } from '../../modal/modal.service';
+import { ConfirmModalComponent } from '../../modal/confirm-modal/confirm-modal.component';
+import { ProjectModalComponent } from '../../modal/project-modal/project-modal.component';
+import type { ProjectModalResult } from '../../modal/project-modal/project-modal.data';
+import { TaskModalComponent } from '../../modal/task-modal/task-modal.component';
+import type { TaskModalResult } from '../../modal/task-modal/task-modal.data';
+import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import type { CleanupFn, DropTargetRecord } from '@atlaskit/pragmatic-drag-and-drop/types';
+import { TaskCardDndDirective } from '../../dnd/task-card-dnd.directive';
+import { TaskColumnDndDirective } from '../../dnd/task-column-dnd.directive';
 
 @Component({
   selector: 'app-home',
-  imports: [ReactiveFormsModule, FormsModule, RouterLink],
+  imports: [FormsModule, TaskCardDndDirective, TaskColumnDndDirective],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   projects: Project[] = [];
   tasks: TaskWithCreatorAndRole[] = [];
-  form: FormGroup;
-  createTaskForm: FormGroup;
-  editTaskForm: FormGroup;
   loading = true;
   tasksLoading = true;
   error = '';
-  showCreateForm = false;
-  showCreateTaskForm = false;
   filterByCreator = '';
   filterByRole = '';
   filterByProject = '';
-  editingTaskId: string | null = null;
+
+  private modal = inject(ModalService);
+  private monitorCleanup: CleanupFn | null = null;
 
   constructor(
     private projectsService: ProjectsService,
     private tasksService: TasksService,
     private auth: AuthService,
-    private fb: FormBuilder,
   ) {
-    this.form = this.fb.nonNullable.group({
-      name: ['', Validators.required],
-      description: [''],
-    });
-    this.createTaskForm = this.fb.nonNullable.group({
-      projectId: ['', Validators.required],
-      title: ['', Validators.required],
-      description: [''],
-    });
-    this.editTaskForm = this.fb.nonNullable.group({
-      title: ['', Validators.required],
-      description: [''],
-      status: ['todo' as TaskStatus],
-    });
   }
 
   ngOnInit(): void {
@@ -69,28 +60,69 @@ export class HomeComponent implements OnInit {
         this.tasksLoading = false;
       },
     });
+
+    this.monitorCleanup = monitorForElements({
+      canMonitor: ({ source }) => (source.data as any)?.kind === 'task',
+      onDrop: ({ source, location }) => {
+        const sourceData = source.data as any;
+        const taskId = sourceData?.taskId as string | undefined;
+        const fromStatus = sourceData?.fromStatus as TaskStatus | undefined;
+        if (!taskId || !fromStatus) return;
+
+        const dropTarget = location.current.dropTargets.find(
+          (t: DropTargetRecord) => (t.data as any)?.kind === 'task-column',
+        );
+        const toStatus = (dropTarget?.data as any)?.status as TaskStatus | undefined;
+        if (!toStatus) return;
+        if (toStatus === fromStatus) return;
+
+        const task = this.tasks.find((t) => t.id === taskId);
+        if (!task) return;
+
+        const prevStatus = task.status;
+        task.status = toStatus;
+
+        this.tasksService.updateTaskStatus(taskId, toStatus).subscribe({
+          next: () => {
+            this.loadTasks();
+          },
+          error: () => {
+            task.status = prevStatus;
+            this.error = 'No se pudo mover la tarea. Intentá de nuevo.';
+          },
+        });
+      },
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.monitorCleanup?.();
+    this.monitorCleanup = null;
   }
 
   logout(): void {
     this.auth.logout();
   }
 
-  onSubmit(): void {
-    if (this.form.invalid) return;
+  openCreateProject(): void {
     this.error = '';
-    const { name, description } = this.form.getRawValue();
-    this.projectsService.createProject(name, description ?? '').subscribe({
-      next: (project) => {
-        this.projects = [...this.projects, project];
-        this.form.reset({ name: '', description: '' });
-        this.showCreateForm = false;
-      },
-      error: (err) => {
-        this.error =
-          err?.error?.message ??
-          'No tenés permiso para crear un proyecto o hubo un error.';
-      },
-    });
+    this.modal
+      .open<ProjectModalResult, { mode: 'create' }>(ProjectModalComponent, {
+        data: { mode: 'create' },
+      })
+      .afterClosed.subscribe((result) => {
+        if (!result) return;
+        this.projectsService.createProject(result.name, result.description).subscribe({
+          next: (project) => {
+            this.projects = [...this.projects, project];
+          },
+          error: (err) => {
+            this.error =
+              err?.error?.message ??
+              'No tenés permiso para crear un proyecto o hubo un error.';
+          },
+        });
+      });
   }
 
   get userName(): string {
@@ -134,6 +166,19 @@ export class HomeComponent implements OnInit {
     return labels[status] ?? status;
   }
 
+  taskPriorityLabel(priority: TaskPriority): string {
+    const labels: Record<TaskPriority, string> = {
+      urgente: 'Urgente',
+      prioritario: 'Prioritario',
+      normal: 'Normal',
+    };
+    return labels[priority] ?? priority;
+  }
+
+  tasksByStatus(status: TaskStatus): TaskWithCreatorAndRole[] {
+    return this.filteredTasks.filter((t) => t.status === status);
+  }
+
   get isAdmin(): boolean {
     return this.auth.getCurrentUser()?.role === 'admin';
   }
@@ -162,61 +207,86 @@ export class HomeComponent implements OnInit {
   }
 
   onDelete(p: Project): void {
-    if (!confirm('¿Eliminar el proyecto "' + p.name + '"?')) return;
-    this.error = '';
-    this.projectsService.deleteProject(p.id).subscribe({
-      next: () => {
-        this.projects = this.projects.filter((proj) => proj.id !== p.id);
-      },
-      error: () => {
-        this.error = 'No tenés permiso para eliminar este proyecto.';
-      },
-    });
+    this.modal
+      .open(ConfirmModalComponent, {
+        data: {
+          title: 'Eliminar proyecto',
+          message: `¿Eliminar el proyecto "${p.name}"?`,
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          danger: true,
+        },
+      })
+      .afterClosed.subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.error = '';
+        this.projectsService.deleteProject(p.id).subscribe({
+          next: () => {
+            this.projects = this.projects.filter((proj) => proj.id !== p.id);
+          },
+          error: () => {
+            this.error = 'No tenés permiso para eliminar este proyecto.';
+          },
+        });
+      });
   }
 
   onDeleteTask(task: TaskWithCreatorAndRole): void {
-    if (!confirm('¿Eliminar esta tarea?')) return;
-    this.error = '';
-    this.tasksService.deleteTask(task.id).subscribe({
-      next: () => {
-        this.tasks = this.tasks.filter((t) => t.id !== task.id);
-      },
-      error: () => {
-        this.error = 'No tenés permiso para eliminar esta tarea. Solo podés eliminar tareas creadas por vos.';
-      },
-    });
-  }
-
-  toggleCreateTaskForm(): void {
-    this.showCreateTaskForm = !this.showCreateTaskForm;
-    this.error = '';
-    if (this.showCreateTaskForm && this.projects.length > 0) {
-      this.createTaskForm.patchValue({
-        projectId: this.projects[0].id,
-        title: '',
-        description: '',
-      });
-    }
-  }
-
-  onCreateTask(): void {
-    if (this.createTaskForm.invalid) return;
-    this.error = '';
-    const { projectId, title, description } = this.createTaskForm.getRawValue();
-    this.tasksService.createTask(projectId, title, description ?? '').subscribe({
-      next: () => {
-        this.createTaskForm.patchValue({
-          projectId: this.projects[0]?.id ?? '',
-          title: '',
-          description: '',
+    this.modal
+      .open(ConfirmModalComponent, {
+        data: {
+          title: 'Eliminar tarea',
+          message: '¿Eliminar esta tarea?',
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          danger: true,
+        },
+      })
+      .afterClosed.subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.error = '';
+        this.tasksService.deleteTask(task.id).subscribe({
+          next: () => {
+            this.tasks = this.tasks.filter((t) => t.id !== task.id);
+          },
+          error: () => {
+            this.error = 'No tenés permiso para eliminar esta tarea. Solo podés eliminar tareas creadas por vos.';
+          },
         });
-        this.showCreateTaskForm = false;
-        this.loadTasks();
-      },
-      error: (err) => {
-        this.error = err?.error?.message ?? 'Error al crear la tarea.';
-      },
-    });
+      });
+  }
+
+  openCreateTaskInStatus(status: TaskStatus): void {
+    if (this.projects.length === 0) {
+      this.error = 'No hay proyectos para asignar. Un administrador debe crear uno.';
+      return;
+    }
+    this.error = '';
+    this.modal
+      .open<TaskModalResult, any>(TaskModalComponent, {
+        data: {
+          mode: 'create',
+          projects: this.projects,
+          initial: {
+            projectId: this.filterByProject || this.projects[0]?.id || '',
+            title: '',
+            description: '',
+            status,
+            priority: 'normal',
+          },
+        },
+      })
+      .afterClosed.subscribe((result) => {
+        if (!result) return;
+        this.tasksService
+          .createTask(result.projectId, result.title, result.description, result.status, result.priority)
+          .subscribe({
+            next: () => this.loadTasks(),
+            error: (err) => {
+              this.error = err?.error?.message ?? 'Error al crear la tarea.';
+            },
+          });
+      });
   }
 
   loadTasks(): void {
@@ -227,33 +297,38 @@ export class HomeComponent implements OnInit {
   }
 
   startEditTask(task: TaskWithCreatorAndRole): void {
-    this.editingTaskId = task.id;
+    if (this.projects.length === 0) return;
     this.error = '';
-    this.editTaskForm.patchValue({
-      title: task.title,
-      description: task.description ?? '',
-      status: task.status,
-    });
-  }
-
-  cancelEditTask(): void {
-    this.editingTaskId = null;
-  }
-
-  onSaveEditTask(): void {
-    if (!this.editingTaskId || this.editTaskForm.invalid) return;
-    this.error = '';
-    const { title, description, status } = this.editTaskForm.getRawValue();
-    this.tasksService
-      .updateTask(this.editingTaskId, { title, description: description ?? '', status })
-      .subscribe({
-        next: () => {
-          this.loadTasks();
-          this.editingTaskId = null;
+    this.modal
+      .open<TaskModalResult, any>(TaskModalComponent, {
+        data: {
+          mode: 'edit',
+          projects: this.projects,
+          initial: {
+            id: task.id,
+            projectId: task.projectId,
+            title: task.title,
+            description: task.description ?? '',
+            status: task.status,
+            priority: task.priority,
+          },
         },
-        error: () => {
-          this.error = 'No tenés permiso para editar esta tarea. Solo podés editar tareas creadas por vos.';
-        },
+      })
+      .afterClosed.subscribe((result) => {
+        if (!result) return;
+        this.tasksService
+          .updateTask(task.id, {
+            title: result.title,
+            description: result.description,
+            status: result.status,
+            priority: result.priority,
+          })
+          .subscribe({
+            next: () => this.loadTasks(),
+            error: () => {
+              this.error = 'No tenés permiso para editar esta tarea. Solo podés editar tareas creadas por vos.';
+            },
+          });
       });
   }
 }

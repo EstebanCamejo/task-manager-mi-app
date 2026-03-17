@@ -15,6 +15,7 @@ import { UpdateProjectDto } from './dto/update-project.dto.js';
 import { ProjectsService } from './projects.service';
 import { TasksService } from '../tasks/tasks.service.js';
 import { CreateTaskDto } from '../tasks/dto/create-task.dto.js';
+import { TaskStatus } from '../tasks/task-status.enum.js';
 
 @Controller('projects')
 @UseGuards(AuthGuard('jwt'))
@@ -57,6 +58,8 @@ export class ProjectsController {
     return this.tasksService.create(projectId, userId, {
       title: dto.title,
       description: dto.description,
+      status: dto.status as TaskStatus | undefined,
+      priority: dto.priority,
     });
   }
 

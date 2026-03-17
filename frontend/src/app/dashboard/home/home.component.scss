@@ -15,6 +15,11 @@
     align-items: center;
     margin-bottom: 1.5rem;
   }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
   .user-block {
     display: flex;
     flex-direction: column;
@@ -31,24 +36,6 @@
   button {
     padding: 0.5rem 1rem;
     cursor: pointer;
-  }
-  .list-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-  .list-header {
-    justify-content: flex-end;
-  }
-  .create-project-form {
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    border: 1px solid #eee;
-    border-radius: 8px;
-  }
-  .create-project-form > div {
-    margin-bottom: 0.75rem;
   }
   .project-list {
     margin-bottom: 2rem;
@@ -121,35 +108,13 @@
   }
   .task-actions-row {
     margin-bottom: 0.75rem;
-  }
-  .create-task-form-inline,
-  .edit-task-form-inline {
-    margin-bottom: 1rem;
-    padding: 1rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
     display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    align-items: flex-end;
+    align-items: center;
+    justify-content: space-between;
   }
-  .create-task-form-inline > div,
-  .edit-task-form-inline > div {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  .create-task-form-inline input,
-  .create-task-form-inline select,
-  .edit-task-form-inline input,
-  .edit-task-form-inline textarea,
-  .edit-task-form-inline select {
-    padding: 0.4rem 0.5rem;
-    min-width: 160px;
-  }
-  .edit-actions {
-    flex-direction: row !important;
-    gap: 0.5rem !important;
+  .hint {
+    color: #64748b;
+    font-size: 0.875rem;
   }
   .task-error {
     margin-bottom: 0.75rem;
@@ -244,6 +209,21 @@
   .task-title:hover {
     text-decoration: underline;
   }
+  .btn-link {
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    color: inherit;
+  }
+  .project-list .btn-link {
+    color: #0066cc;
+    text-decoration: none;
+  }
+  .project-list .btn-link:hover {
+    text-decoration: underline;
+  }
   .task-project-link {
     flex-shrink: 0;
     font-size: 0.875rem;
@@ -286,5 +266,121 @@
     font-size: 0.875rem;
     color: #64748b;
     font-weight: 500;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    gap: 1rem;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .board {
+      grid-template-columns: 1fr;
+    }
+  }
+  .column {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+    min-height: 240px;
+  }
+  .column.is-over {
+    outline: 2px solid #93c5fd;
+    outline-offset: -2px;
+  }
+  .column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 0.9rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+  }
+  .column-header h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .count {
+    font-size: 0.8rem;
+    color: #475569;
+    background: #e2e8f0;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .column-body {
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .card {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    padding: 0.75rem 0.8rem;
+  }
+  .card.is-dragging {
+    opacity: 0.55;
+  }
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .card-title {
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+  .badge {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    color: #fff;
+  }
+  .badge-urgente {
+    background: #dc2626;
+  }
+  .badge-prioritario {
+    background: #f59e0b;
+  }
+  .badge-normal {
+    background: #16a34a;
+  }
+  .card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+    margin-bottom: 0.65rem;
+    color: #64748b;
+    font-size: 0.85rem;
+  }
+  .card-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+  .btn-add {
+    margin-top: 0.25rem;
+    width: 100%;
+    border: 1px dashed #94a3b8;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #334155;
+  }
+  .btn-add:hover {
+    border-color: #64748b;
+    background: #f1f5f9;
   }
 }
