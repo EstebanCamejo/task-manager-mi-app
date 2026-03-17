@@ -1,39 +1,40 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { Role } from './role.enum';
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  passwordHash: string;
-  role: Role;
-}
-
-interface CreateUserInput {
-  name: string;
-  email: string;
-  passwordHash: string;
   role: Role;
 }
 
 @Injectable()
 export class UsersService {
-  private users: User[] = [];
-
-  async create(input: CreateUserInput): Promise<User> {
-    const user: User = {
-      id: crypto.randomUUID(),
-      ...input,
-    };
-    this.users.push(user);
-    return user;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findByEmail(email: string): Promise<User | undefined> {
-    return this.users.find((u) => u.email === email);
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, name: true, email: true, role: true },
+    });
+    return user ? this.mapToUser(user) : undefined;
   }
 
-  findById(id: string): User | undefined {
-    return this.users.find((u) => u.id === id);
+  async findById(id: string): Promise<User | undefined> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, name: true, email: true, role: true },
+    });
+    return user ? this.mapToUser(user) : undefined;
+  }
+
+  private mapToUser(row: { id: string; name: string; email: string; role: string }): User {
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role as Role,
+    };
   }
 }

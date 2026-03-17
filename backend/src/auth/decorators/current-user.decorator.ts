@@ -4,12 +4,13 @@ export interface CurrentUserData {
   userId: string;
   email: string;
   role: string;
+  name?: string;
 }
 
 export const CurrentUser = createParamDecorator(
   (data: keyof CurrentUserData | undefined, ctx: ExecutionContext): CurrentUserData | string => {
     const request = ctx.switchToHttp().getRequest();
     const user = request.user as CurrentUserData;
-    return data ? user?.[data] : user;
+    return data ? (user?.[data] ?? '') : user;
   },
 );

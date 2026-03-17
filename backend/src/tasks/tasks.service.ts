@@ -48,29 +48,35 @@ export class TasksService {
     return task;
   }
 
-  private getCreatorName(creatorId: string): string {
-    const user = this.usersService.findById(creatorId);
+  private async getCreatorName(creatorId: string): Promise<string> {
+    const user = await this.usersService.findById(creatorId);
     return user?.name ?? 'Desconocido';
   }
 
-  private getCreatorRole(creatorId: string): string {
-    const user = this.usersService.findById(creatorId);
+  private async getCreatorRole(creatorId: string): Promise<string> {
+    const user = await this.usersService.findById(creatorId);
     return user?.role ?? 'user';
   }
 
   /** Todas las tareas que el usuario puede ver: admin y user ven todas */
-  findAllForUser(_userId: string, _role: string): TaskWithCreatorAndRole[] {
-    return this.tasks.map((t) => ({
-      ...t,
-      creatorName: this.getCreatorName(t.creatorId),
-      creatorRole: this.getCreatorRole(t.creatorId),
-    }));
+  async findAllForUser(_userId: string, _role: string): Promise<TaskWithCreatorAndRole[]> {
+    return Promise.all(
+      this.tasks.map(async (t) => ({
+        ...t,
+        creatorName: await this.getCreatorName(t.creatorId),
+        creatorRole: await this.getCreatorRole(t.creatorId),
+      })),
+    );
   }
 
-  findAllByProject(projectId: string): TaskWithCreator[] {
-    return this.tasks
-      .filter((t) => t.projectId === projectId)
-      .map((t) => ({ ...t, creatorName: this.getCreatorName(t.creatorId) }));
+  async findAllByProject(projectId: string): Promise<TaskWithCreator[]> {
+    const filtered = this.tasks.filter((t) => t.projectId === projectId);
+    return Promise.all(
+      filtered.map(async (t) => ({
+        ...t,
+        creatorName: await this.getCreatorName(t.creatorId),
+      })),
+    );
   }
 
   findOne(id: string): Task {
@@ -81,9 +87,10 @@ export class TasksService {
     return task;
   }
 
-  findOneWithCreator(id: string): TaskWithCreator {
+  async findOneWithCreator(id: string): Promise<TaskWithCreator> {
     const task = this.findOne(id);
-    return { ...task, creatorName: this.getCreatorName(task.creatorId) };
+    const creatorName = await this.getCreatorName(task.creatorId);
+    return { ...task, creatorName };
   }
 
   update(
