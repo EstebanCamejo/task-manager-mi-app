@@ -397,5 +397,5 @@ Enviar un repositorio con el código. Debe incluir un README explicando:
 - Skeleton loaders para estados de carga (mejor UX percibida).
 - Frontend protegido con `authGuard` + token Bearer en servicios HTTP (`AuthService`, `ProjectsService`, `TasksService`).
 
-*Este README se va actualizando con cada fase. No se sube a git hasta indicación.*
+
 
