@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { OverlayModule } from '@angular/cdk/overlay';
+import { ThemeService } from './services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -10,4 +11,10 @@ import { OverlayModule } from '@angular/cdk/overlay';
 })
 export class AppComponent {
   title = 'frontend';
+
+  constructor(private theme: ThemeService) {}
+
+  ngOnInit(): void {
+    this.theme.init();
+  }
 }

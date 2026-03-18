@@ -12,6 +12,7 @@ import { AuthService } from '../../services/auth.service';
 export class LoginComponent {
   form: FormGroup;
   error = '';
+  quickLoading = false;
 
   constructor(
     private fb: FormBuilder,
@@ -31,6 +32,21 @@ export class LoginComponent {
       next: () => this.router.navigate(['/dashboard']),
       error: (err) => {
         this.error = err?.error?.message ?? 'Error al iniciar sesión';
+      },
+    });
+  }
+
+  onQuickRegister(): void {
+    this.error = '';
+    this.quickLoading = true;
+    this.auth.quickRegister().subscribe({
+      next: () => this.router.navigate(['/dashboard']),
+      error: (err) => {
+        this.error = err?.error?.message ?? 'No se pudo crear un usuario rápido';
+        this.quickLoading = false;
+      },
+      complete: () => {
+        this.quickLoading = false;
       },
     });
   }

@@ -20,5 +20,10 @@
     </div>
     <button type="submit" [disabled]="form.invalid">Entrar</button>
   </form>
-  <p><a routerLink="/auth/register">Registrarse</a></p>
+  <div class="actions">
+    <button type="button" class="btn-secondary" routerLink="/auth/register">Registrarse</button>
+    <button type="button" class="btn-secondary" (click)="onQuickRegister()" [disabled]="quickLoading">
+      {{ quickLoading ? 'Creando usuario...' : 'Registrarse rápido' }}
+    </button>
+  </div>
 </div>

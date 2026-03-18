@@ -59,6 +59,7 @@ model Task {
   description  String       @default("")
   status       TaskStatus   @default(todo)
   priority     TaskPriority @default(normal)
+  order        Int          @default(0)
   projectId    String
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   creatorId    String

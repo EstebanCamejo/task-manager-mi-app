@@ -14,6 +14,7 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
+  order: number;
   projectId: string;
   creatorId: string;
   assigneeName: string;
@@ -91,6 +92,14 @@ export class TasksService {
     return this.http.patch<Task>(
       `${API}/tasks/${taskId}/status`,
       { status },
+      { headers: this.headers() },
+    );
+  }
+
+  reorderTask(taskId: string, status: TaskStatus, order: number): Observable<Task> {
+    return this.http.patch<Task>(
+      `${API}/tasks/${taskId}/reorder`,
+      { status, order },
       { headers: this.headers() },
     );
   }

@@ -12,6 +12,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { TasksService } from './tasks.service';
 import { UpdateStatusDto } from './dto/update-status.dto.js';
 import { UpdateTaskDto } from './dto/update-task.dto.js';
+import { ReorderTaskDto } from './dto/reorder-task.dto.js';
 
 @Controller('tasks')
 @UseGuards(AuthGuard('jwt'))
@@ -54,6 +55,16 @@ export class TasksController {
     @CurrentUser('role') role: string,
   ) {
     return this.tasksService.updateStatus(id, dto.status, userId, role);
+  }
+
+  @Patch(':id/reorder')
+  reorder(
+    @Param('id') id: string,
+    @Body() dto: ReorderTaskDto,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('role') role: string,
+  ) {
+    return this.tasksService.reorder(id, dto.status, dto.order, userId, role);
   }
 
   @Delete(':id')

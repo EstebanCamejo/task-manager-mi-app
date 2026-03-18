@@ -37,7 +37,7 @@ import type { ProjectModalData, ProjectModalResult } from './project-modal.data'
   styles: [
     `
       .modal-box {
-        background: var(--modal-bg, #fff);
+        background: var(--color-surface);
         padding: 1.25rem;
         border-radius: 10px;
         min-width: 360px;
@@ -46,6 +46,7 @@ import type { ProjectModalData, ProjectModalResult } from './project-modal.data'
       .modal-title {
         margin: 0 0 1rem;
         font-size: 1.25rem;
+        color: var(--color-text);
       }
       .field {
         display: flex;
@@ -53,10 +54,20 @@ import type { ProjectModalData, ProjectModalResult } from './project-modal.data'
         gap: 0.25rem;
         margin-bottom: 0.75rem;
       }
+      label {
+        color: var(--color-text);
+        font-weight: 600;
+      }
       input {
         padding: 0.5rem 0.6rem;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--color-border);
         border-radius: 8px;
+        background: var(--color-surface);
+        color: var(--color-text);
+      }
+      input:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.35);
+        outline-offset: 2px;
       }
       .actions {
         display: flex;
@@ -66,16 +77,17 @@ import type { ProjectModalData, ProjectModalResult } from './project-modal.data'
       }
       .btn-cancel {
         padding: 0.5rem 0.9rem;
-        border: 1px solid #cbd5e1;
+        border: 1px solid var(--color-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--color-surface);
+        color: var(--color-text);
         cursor: pointer;
       }
       .btn-confirm {
         padding: 0.5rem 0.9rem;
         border: none;
         border-radius: 8px;
-        background: #0066cc;
+        background: var(--color-primary);
         color: #fff;
         cursor: pointer;
       }

@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { Role } from '@prisma/client';
+import { ExternalService } from '../external/external.service.js';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +18,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly externalService: ExternalService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -100,6 +102,50 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Token de refresh inválido');
     }
+  }
+
+  async quickRegister() {
+    const password =
+      this.configService.get<string>('QUICK_REGISTER_PASSWORD') ?? '123456';
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // We retry in case the random email already exists (unique constraint)
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const profile = await this.externalService.getRandomUserProfile();
+
+      // add a suffix on retries to reduce collision probability
+      const email =
+        attempt === 0
+          ? profile.email
+          : profile.email.replace('@', `+${Date.now()}@`);
+
+      const existing = await this.prisma.user.findUnique({ where: { email } });
+      if (existing) continue;
+
+      const user = await this.prisma.user.create({
+        data: {
+          name: profile.name,
+          email,
+          password: hashedPassword,
+          role: Role.user,
+        },
+      });
+
+      const tokens = await this.generateTokens(user.id, user.email, user.role, user.name);
+      return {
+        ...tokens,
+        access_token: tokens.accessToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          createdAt: user.createdAt,
+        },
+      };
+    }
+
+    throw new ConflictException('No se pudo crear un usuario rápido. Reintentá.');
   }
 
   private async generateTokens(

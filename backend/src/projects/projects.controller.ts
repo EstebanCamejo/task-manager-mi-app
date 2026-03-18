@@ -52,10 +52,11 @@ export class ProjectsController {
   async createTask(
     @Param('projectId') projectId: string,
     @CurrentUser('userId') userId: string,
+    @CurrentUser('role') role: string,
     @Body() dto: CreateTaskDto,
   ) {
     await this.projectsService.findOne(projectId);
-    return this.tasksService.create(projectId, userId, {
+    return this.tasksService.create(projectId, userId, role, {
       title: dto.title,
       description: dto.description,
       status: dto.status as TaskStatus | undefined,

@@ -14,6 +14,7 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: 'urgente' | 'prioritario' | 'normal';
+  order: number;
   projectId: string;
   creatorId: string;
   assigneeName: string;
@@ -50,6 +51,7 @@ export class TasksService {
   async create(
     projectId: string,
     creatorId: string,
+    creatorRole: string,
     data: {
       title: string;
       description?: string;
@@ -57,7 +59,24 @@ export class TasksService {
       priority?: 'urgente' | 'prioritario' | 'normal';
     },
   ): Promise<Task> {
-    const assigneeName = await this.externalService.getRandomAssigneeName();
+    const assigneeName =
+      creatorRole === 'admin'
+        ? await this.externalService.getRandomAssigneeName()
+        : (
+            await this.prisma.user.findUnique({
+              where: { id: creatorId },
+              select: { name: true },
+            })
+          )?.name ?? 'Sin asignar';
+
+    const max = await this.prisma.task.aggregate({
+      where: {
+        status: statusToPrisma[data.status ?? TaskStatus.Todo],
+      },
+      _max: { order: true },
+    });
+    const nextOrder = (max._max.order ?? 0) + 1;
+
     const task = await this.prisma.task.create({
       // Prisma Client types pueden quedar desincronizados en el editor;
       // la columna existe en BD y Prisma schema.
@@ -69,6 +88,7 @@ export class TasksService {
         assigneeName: assigneeName || null,
         status: statusToPrisma[data.status ?? TaskStatus.Todo],
         priority: data.priority ?? 'normal',
+        order: nextOrder,
       } as any,
     });
     return this.toTask(task);
@@ -80,7 +100,7 @@ export class TasksService {
       include: {
         creator: { select: { name: true, role: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ status: 'asc' }, { order: 'asc' }, { createdAt: 'desc' }],
     });
     return list.map((t) => ({
       ...this.toTask(t),
@@ -95,7 +115,7 @@ export class TasksService {
       include: {
         creator: { select: { name: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ status: 'asc' }, { order: 'asc' }, { createdAt: 'desc' }],
     });
     return list.map((t) => ({
       ...this.toTask(t),
@@ -129,8 +149,8 @@ export class TasksService {
 
   async update(
     id: string,
-    _userId: string,
-    _role: string,
+    userId: string,
+    role: string,
     data: {
       title?: string;
       description?: string;
@@ -138,7 +158,8 @@ export class TasksService {
       priority?: 'urgente' | 'prioritario' | 'normal';
     },
   ): Promise<Task> {
-    await this.findOne(id);
+    const task = await this.findOne(id);
+    this.assertCanModify(task, userId, role);
     const updated = await this.prisma.task.update({
       where: { id },
       data: {
@@ -154,10 +175,11 @@ export class TasksService {
   async updateStatus(
     id: string,
     status: TaskStatus,
-    _userId: string,
-    _role: string,
+    userId: string,
+    role: string,
   ): Promise<Task> {
-    await this.findOne(id);
+    const task = await this.findOne(id);
+    this.assertCanModify(task, userId, role);
     const updated = await this.prisma.task.update({
       where: { id },
       data: { status: statusToPrisma[status] },
@@ -179,12 +201,81 @@ export class TasksService {
     });
   }
 
+  async reorder(
+    taskId: string,
+    toStatus: TaskStatus,
+    toOrder: number,
+    userId: string,
+    role: string,
+  ): Promise<Task> {
+    const task = await this.findOne(taskId);
+    this.assertCanModify(task, userId, role);
+    const fromStatus = task.status;
+    const fromOrder = task.order;
+
+    return this.prisma.$transaction(async (tx) => {
+      if (fromStatus === toStatus) {
+        if (toOrder === fromOrder) {
+          const current = await tx.task.findUnique({ where: { id: taskId } });
+          return this.toTask(current as any);
+        }
+
+        if (toOrder < fromOrder) {
+          await tx.task.updateMany({
+            where: {
+              status: statusToPrisma[toStatus],
+              order: { gte: toOrder, lt: fromOrder },
+            },
+            data: { order: { increment: 1 } } as any,
+          });
+        } else {
+          await tx.task.updateMany({
+            where: {
+              status: statusToPrisma[toStatus],
+              order: { gt: fromOrder, lte: toOrder },
+            },
+            data: { order: { decrement: 1 } } as any,
+          });
+        }
+
+        const updated = await tx.task.update({
+          where: { id: taskId },
+          data: { order: toOrder } as any,
+        });
+        return this.toTask(updated as any);
+      }
+
+      await tx.task.updateMany({
+        where: {
+          status: statusToPrisma[fromStatus],
+          order: { gt: fromOrder },
+        },
+        data: { order: { decrement: 1 } } as any,
+      });
+
+      await tx.task.updateMany({
+        where: {
+          status: statusToPrisma[toStatus],
+          order: { gte: toOrder },
+        },
+        data: { order: { increment: 1 } } as any,
+      });
+
+      const moved = await tx.task.update({
+        where: { id: taskId },
+        data: { status: statusToPrisma[toStatus], order: toOrder } as any,
+      });
+      return this.toTask(moved as any);
+    });
+  }
+
   private toTask(row: {
     id: string;
     title: string;
     description: string;
     status: string;
     priority?: unknown;
+    order?: number;
     projectId: string;
     creatorId: string;
     assigneeName: string | null;
@@ -195,6 +286,7 @@ export class TasksService {
       description: row.description,
       status: statusFromPrisma(row.status),
       priority: priorityFromPrisma(row.priority),
+      order: row.order ?? 0,
       projectId: row.projectId,
       creatorId: row.creatorId,
       assigneeName: row.assigneeName ?? '',
@@ -205,5 +297,11 @@ export class TasksService {
     if (role === 'admin') return;
     if (task.creatorId === userId) return;
     throw new ForbiddenException('Solo podés eliminar tareas creadas por vos.');
+  }
+
+  private assertCanModify(task: Task, userId: string, role: string): void {
+    if (role === 'admin') return;
+    if (task.creatorId === userId) return;
+    throw new ForbiddenException('Solo podés modificar tareas creadas por vos.');
   }
 }

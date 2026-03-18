@@ -21,4 +21,9 @@ export class AuthController {
   refresh(@Body('refreshToken') refreshToken: string) {
     return this.authService.refreshToken(refreshToken);
   }
+
+  @Post('quick-register')
+  quickRegister() {
+    return this.authService.quickRegister();
+  }
 }

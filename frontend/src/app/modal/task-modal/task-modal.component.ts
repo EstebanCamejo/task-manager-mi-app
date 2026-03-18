@@ -70,7 +70,7 @@ const defaultPriority: TaskPriority = 'normal';
   styles: [
     `
       .modal-box {
-        background: var(--modal-bg, #fff);
+        background: var(--color-surface);
         padding: 1.25rem;
         border-radius: 10px;
         min-width: 420px;
@@ -80,6 +80,7 @@ const defaultPriority: TaskPriority = 'normal';
       .modal-title {
         margin: 0 0 1rem;
         font-size: 1.25rem;
+        color: var(--color-text);
       }
       .grid {
         display: grid;
@@ -91,6 +92,10 @@ const defaultPriority: TaskPriority = 'normal';
         flex-direction: column;
         gap: 0.25rem;
       }
+      label {
+        color: var(--color-text);
+        font-weight: 600;
+      }
       .full {
         grid-column: 1 / -1;
       }
@@ -98,8 +103,16 @@ const defaultPriority: TaskPriority = 'normal';
       textarea,
       select {
         padding: 0.5rem 0.6rem;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--color-border);
         border-radius: 8px;
+        background: var(--color-surface);
+        color: var(--color-text);
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.35);
+        outline-offset: 2px;
       }
       .actions {
         display: flex;
@@ -109,16 +122,17 @@ const defaultPriority: TaskPriority = 'normal';
       }
       .btn-cancel {
         padding: 0.5rem 0.9rem;
-        border: 1px solid #cbd5e1;
+        border: 1px solid var(--color-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--color-surface);
+        color: var(--color-text);
         cursor: pointer;
       }
       .btn-confirm {
         padding: 0.5rem 0.9rem;
         border: none;
         border-radius: 8px;
-        background: #0066cc;
+        background: var(--color-primary);
         color: #fff;
         cursor: pointer;
       }

@@ -18,9 +18,11 @@ const defaultConfirmData: ConfirmModalData = {
       <h2 class="modal-title">{{ data.title }}</h2>
       <p class="modal-message">{{ data.message }}</p>
       <div class="modal-actions">
-        <button type="button" class="btn-cancel" (click)="cancel()">
-          {{ data.cancelText ?? 'Cancelar' }}
-        </button>
+        @if (!data.hideCancel) {
+          <button type="button" class="btn-cancel" (click)="cancel()">
+            {{ data.cancelText ?? 'Cancelar' }}
+          </button>
+        }
         <button
           type="button"
           [class]="data.danger ? 'btn-confirm btn-danger' : 'btn-confirm'"

@@ -47,6 +47,14 @@ export class AuthService {
     );
   }
 
+  quickRegister(): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${API}/auth/quick-register`, {}).pipe(
+      tap((res) => {
+        localStorage.setItem(TOKEN_KEY, res.access_token);
+      }),
+    );
+  }
+
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
     this.router.navigate(['/auth/login']);

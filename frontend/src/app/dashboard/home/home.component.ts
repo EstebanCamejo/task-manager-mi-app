@@ -13,6 +13,7 @@ import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/ad
 import type { CleanupFn, DropTargetRecord } from '@atlaskit/pragmatic-drag-and-drop/types';
 import { TaskCardDndDirective } from '../../dnd/task-card-dnd.directive';
 import { TaskColumnDndDirective } from '../../dnd/task-column-dnd.directive';
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-home',
@@ -26,11 +27,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   loading = true;
   tasksLoading = true;
   error = '';
+  showProjects = false;
   filterByCreator = '';
   filterByRole = '';
   filterByProject = '';
 
   private modal = inject(ModalService);
+  private theme = inject(ThemeService);
   private monitorCleanup: CleanupFn | null = null;
 
   constructor(
@@ -67,6 +70,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         const sourceData = source.data as any;
         const taskId = sourceData?.taskId as string | undefined;
         const fromStatus = sourceData?.fromStatus as TaskStatus | undefined;
+        const fromOrder = sourceData?.fromOrder as number | undefined;
         if (!taskId || !fromStatus) return;
 
         const dropTarget = location.current.dropTargets.find(
@@ -74,20 +78,37 @@ export class HomeComponent implements OnInit, OnDestroy {
         );
         const toStatus = (dropTarget?.data as any)?.status as TaskStatus | undefined;
         if (!toStatus) return;
-        if (toStatus === fromStatus) return;
+        const columnElement = dropTarget?.element as HTMLElement | undefined;
+        const toOrder = columnElement
+          ? this.getDropIndexInColumn({ columnElement, clientY: location.current.input.clientY })
+          : (fromOrder ?? 1);
 
         const task = this.tasks.find((t) => t.id === taskId);
         if (!task) return;
+        if (!this.canModifyTask(task)) {
+          this.modal.open(ConfirmModalComponent, {
+            data: {
+              title: 'Sin permiso',
+              message: 'No tenés permiso para mover esta tarea.',
+              confirmText: 'Entendido',
+              hideCancel: true,
+            },
+          });
+          return;
+        }
 
         const prevStatus = task.status;
+        const prevOrder = task.order ?? 0;
         task.status = toStatus;
+        task.order = toOrder;
 
-        this.tasksService.updateTaskStatus(taskId, toStatus).subscribe({
+        this.tasksService.reorderTask(taskId, toStatus, toOrder).subscribe({
           next: () => {
             this.loadTasks();
           },
           error: () => {
             task.status = prevStatus;
+            task.order = prevOrder;
             this.error = 'No se pudo mover la tarea. Intentá de nuevo.';
           },
         });
@@ -102,6 +123,14 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   logout(): void {
     this.auth.logout();
+  }
+
+  toggleProjects(): void {
+    this.showProjects = !this.showProjects;
+  }
+
+  toggleTheme(): void {
+    this.theme.toggle();
   }
 
   openCreateProject(): void {
@@ -122,6 +151,36 @@ export class HomeComponent implements OnInit, OnDestroy {
               'No tenés permiso para crear un proyecto o hubo un error.';
           },
         });
+      });
+  }
+
+  openEditProject(project: Project): void {
+    this.error = '';
+    this.modal
+      .open<ProjectModalResult, any>(ProjectModalComponent, {
+        data: {
+          mode: 'edit',
+          initial: {
+            name: project.name,
+            description: project.description,
+            status: project.status,
+          },
+        },
+      })
+      .afterClosed.subscribe((result) => {
+        if (!result) return;
+        this.projectsService
+          .updateProject(project.id, result.name, result.description, project.status)
+          .subscribe({
+            next: (updated) => {
+              this.projects = this.projects.map((p) => (p.id === project.id ? updated : p));
+            },
+            error: (err) => {
+              this.error =
+                err?.error?.message ??
+                'No tenés permiso para editar este proyecto o hubo un error.';
+            },
+          });
       });
   }
 
@@ -176,7 +235,20 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   tasksByStatus(status: TaskStatus): TaskWithCreatorAndRole[] {
-    return this.filteredTasks.filter((t) => t.status === status);
+    return this.filteredTasks
+      .filter((t) => t.status === status)
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  private getDropIndexInColumn(args: { columnElement: HTMLElement; clientY: number }): number {
+    const cards = Array.from(args.columnElement.querySelectorAll('.card')) as HTMLElement[];
+    if (cards.length === 0) return 1;
+    const idx = cards.findIndex((el) => {
+      const rect = el.getBoundingClientRect();
+      return args.clientY < rect.top + rect.height / 2;
+    });
+    return idx === -1 ? cards.length + 1 : idx + 1;
   }
 
   get isAdmin(): boolean {
@@ -191,9 +263,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     return this.isAdmin || task.creatorId === this.currentUserId;
   }
 
-  /** Cualquier usuario puede editar cualquier tarea (título, descripción, estado). */
-  canModifyTask(_task: TaskWithCreatorAndRole): boolean {
-    return true;
+  canModifyTask(task: TaskWithCreatorAndRole): boolean {
+    return this.isAdmin || task.creatorId === this.currentUserId;
   }
 
   creatorColorIndex(creatorName: string): number {
@@ -298,6 +369,10 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   startEditTask(task: TaskWithCreatorAndRole): void {
     if (this.projects.length === 0) return;
+    if (!this.canModifyTask(task)) {
+      this.error = 'No tenés permiso para editar esta tarea.';
+      return;
+    }
     this.error = '';
     this.modal
       .open<TaskModalResult, any>(TaskModalComponent, {
@@ -325,8 +400,10 @@ export class HomeComponent implements OnInit, OnDestroy {
           })
           .subscribe({
             next: () => this.loadTasks(),
-            error: () => {
-              this.error = 'No tenés permiso para editar esta tarea. Solo podés editar tareas creadas por vos.';
+            error: (err) => {
+              this.error =
+                err?.error?.message ??
+                'No se pudo editar la tarea. Intentá de nuevo.';
             },
           });
       });
